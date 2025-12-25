@@ -992,6 +992,10 @@
       <h3 class="mb-4">Add New Participant</h3>
       <form onsubmit="addParticipant(event)">
         <div class="input-group">
+          <label>Unique ID</label>
+          <input type="text" class="input" id="newParticipantUniqueId" placeholder="e.g., 100001" required>
+        </div>
+        <div class="input-group">
           <label>Name</label>
           <input type="text" class="input" id="newParticipantName" placeholder="John Doe" required>
         </div>
@@ -1395,9 +1399,10 @@
 
     function addParticipant(e) {
       e.preventDefault();
+      const uniqueIdValue = document.getElementById('newParticipantUniqueId').value.trim();
       const participant = {
         id: generateId(),
-        uniqueId: generateParticipantUniqueId(),
+        uniqueId: uniqueIdValue || generateParticipantUniqueId(),
         name: document.getElementById('newParticipantName').value,
         email: document.getElementById('newParticipantEmail').value,
         level: 1,

@@ -829,6 +829,7 @@
           <table>
             <thead>
               <tr>
+                <th>Unique ID</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Level</th>
@@ -1020,11 +1021,11 @@
         { id: '3', name: 'Evening Shift', startTime: '2025-01-15T18:00', endTime: '2025-01-15T21:00', duration: 30, isActive: false }
       ],
       participants: [
-        { id: '1', name: 'Alice Johnson', email: 'alice@example.com', level: 3, correctAnswers: 25, wrongAnswers: 5, totalScore: 250, assignedShifts: ['1', '2'] },
-        { id: '2', name: 'Bob Smith', email: 'bob@example.com', level: 2, correctAnswers: 18, wrongAnswers: 12, totalScore: 180, assignedShifts: ['1'] },
-        { id: '3', name: 'Carol Williams', email: 'carol@example.com', level: 4, correctAnswers: 35, wrongAnswers: 8, totalScore: 350, assignedShifts: ['2', '3'] },
-        { id: '4', name: 'David Brown', email: 'david@example.com', level: 1, correctAnswers: 8, wrongAnswers: 7, totalScore: 80, assignedShifts: ['1', '3'] },
-        { id: '5', name: 'Eva Martinez', email: 'eva@example.com', level: 5, correctAnswers: 45, wrongAnswers: 3, totalScore: 450, assignedShifts: ['1', '2', '3'] }
+        { id: '1', uniqueId: '100001', name: 'Alice Johnson', email: 'alice@example.com', level: 3, correctAnswers: 25, wrongAnswers: 5, totalScore: 250, assignedShifts: ['1', '2'] },
+        { id: '2', uniqueId: '100002', name: 'Bob Smith', email: 'bob@example.com', level: 2, correctAnswers: 18, wrongAnswers: 12, totalScore: 180, assignedShifts: ['1'] },
+        { id: '3', uniqueId: '100003', name: 'Carol Williams', email: 'carol@example.com', level: 4, correctAnswers: 35, wrongAnswers: 8, totalScore: 350, assignedShifts: ['2', '3'] },
+        { id: '4', uniqueId: '100004', name: 'David Brown', email: 'david@example.com', level: 1, correctAnswers: 8, wrongAnswers: 7, totalScore: 80, assignedShifts: ['1', '3'] },
+        { id: '5', uniqueId: '100005', name: 'Eva Martinez', email: 'eva@example.com', level: 5, correctAnswers: 45, wrongAnswers: 3, totalScore: 450, assignedShifts: ['1', '2', '3'] }
       ],
       questions: [
         { id: '1', shiftId: '1', question: 'What is the capital of France?', options: ['London', 'Berlin', 'Paris', 'Madrid'], correctAnswer: 2 },
@@ -1059,6 +1060,14 @@
     // =====================
     function generateId() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    // Generate a sequential participant unique ID (external-facing), start at 100001
+    function generateParticipantUniqueId() {
+      const ids = state.participants.map(p => Number(p.uniqueId || p.id)).filter(n => !isNaN(n));
+      const maxExisting = ids.length ? Math.max(...ids) : 100000;
+      const base = Math.max(maxExisting, 100000);
+      return String(base + 1).padStart(6, '0');
     }
 
     function showToast(message, type = 'success') {
@@ -1150,8 +1159,6 @@
         fetch('hosts.json').then(r => { if (!r.ok) return null; return r.json(); }).catch(() => null)
       ])
         .then(([pData, hData]) => {
-          const participant = pData.participants.find(p => p.id === participantId);
-
           // Allow hosts to use the participant login form (by id or email)
           let hostMatch = null;
           if (hData && hData.hosts) {
@@ -1167,26 +1174,33 @@
             return;
           }
 
-          // Validate password matches the common password from participants.json
-          if (participant && password === pData.commonPassword) {
-            // Create user object with participant ID as name for now; default level 0 (0-5 range)
+          // Restrict participant login to IDs present in the host dashboard list (state.participants)
+          const participantInState = state.participants.find(p => (p.uniqueId && p.uniqueId === participantId) || p.id === participantId);
+
+          if (!participantInState) {
+            document.getElementById('participantPassword').value = '';
+            showToast('Participant ID not found in host list.', 'error');
+            return;
+          }
+
+          // Validate password against the common password from participants.json
+          if (password === (pData && pData.commonPassword)) {
+            // Use the host list participant record as the logged-in user
             state.currentUser = {
-              id: participantId,
-              name: `Participant ${participantId}`,
-              email: participantId,
-              level: 0,
-              correctAnswers: 0,
-              wrongAnswers: 0,
-              totalScore: 0,
-              assignedShifts: state.shifts.filter(s => s.isActive).map(s => s.id),
-              submissionTime: null
+              id: participantInState.id,
+              uniqueId: participantInState.uniqueId || null,
+              name: participantInState.name || `Participant ${participantId}`,
+              email: participantInState.email || participantId,
+              level: participantInState.level || 0,
+              correctAnswers: participantInState.correctAnswers || 0,
+              wrongAnswers: participantInState.wrongAnswers || 0,
+              totalScore: participantInState.totalScore || 0,
+              assignedShifts: participantInState.assignedShifts || state.shifts.filter(s => s.isActive).map(s => s.id),
+              submissionTime: participantInState.submissionTime || null
             };
             state.userType = 'participant';
             showPage('participantDashboard');
-            showToast(`Welcome, Participant ${participantId}!`);
-          } else if (!participant) {
-            document.getElementById('participantPassword').value = '';
-            showToast('Participant ID not found.', 'error');
+            showToast(`Welcome, ${state.currentUser.name}!`);
           } else {
             document.getElementById('participantPassword').value = '';
             showToast('Invalid password.', 'error');
@@ -1360,6 +1374,7 @@
       const tbody = document.getElementById('participantsTable');
       tbody.innerHTML = state.participants.map(p => `
         <tr>
+          <td>${p.uniqueId || p.id}</td>
           <td>${p.name}</td>
           <td>${p.email}</td>
           <td><span class="badge badge-primary">Level ${p.level}</span></td>
@@ -1382,6 +1397,7 @@
       e.preventDefault();
       const participant = {
         id: generateId(),
+        uniqueId: generateParticipantUniqueId(),
         name: document.getElementById('newParticipantName').value,
         email: document.getElementById('newParticipantEmail').value,
         level: 1,
@@ -1435,17 +1451,27 @@
             });
           }
 
-          // merge parsed into state.participants (by id)
+          // merge parsed into state.participants (preserve external IDs as `uniqueId`)
           parsed.forEach(p => {
-            if (!p.id) p.id = generateId();
-            const existing = state.participants.find(x => x.id === p.id);
+            const externalId = p.id || null;
+            const existing = state.participants.find(x => x.id === p.id || x.uniqueId === p.id);
             if (existing) {
-              Object.assign(existing, p);
+              existing.uniqueId = externalId || existing.uniqueId;
+              Object.assign(existing, {
+                name: p.name || existing.name,
+                email: p.email || existing.email,
+                level: Math.min(5, Math.max(0, Number(p.level) || existing.level || 0)),
+                correctAnswers: Number(p.correctAnswers) || existing.correctAnswers || 0,
+                wrongAnswers: Number(p.wrongAnswers) || existing.wrongAnswers || 0,
+                totalScore: Number(p.totalScore) || existing.totalScore || 0,
+                assignedShifts: p.assignedShifts || existing.assignedShifts || state.shifts.filter(s => s.isActive).map(s => s.id)
+              });
             } else {
-              // ensure required fields
+              // create a new internal participant record; keep external unique id in `uniqueId`
               const newP = {
-                id: p.id,
-                name: p.name || `Participant ${p.id}`,
+                id: generateId(),
+                uniqueId: externalId || generateParticipantUniqueId(),
+                name: p.name || `Participant ${externalId || ''}`,
                 email: p.email || '',
                 level: Math.min(5, Math.max(0, Number(p.level) || 0)),
                 correctAnswers: Number(p.correctAnswers) || 0,

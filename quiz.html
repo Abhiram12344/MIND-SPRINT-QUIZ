@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz Application - Host & Participant Platform</title>
+  <meta name="description" content="Interactive quiz platform with host management and participant dashboards">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --background: 222 47% 6%;
+      --foreground: 180 100% 95%;
+      --card: 220 40% 10%;
+      --card-foreground: 180 100% 95%;
+      --primary: 174 100% 50%;
+      --primary-foreground: 222 47% 6%;
+      --secondary: 220 30% 15%;
+      --secondary-foreground: 180 100% 95%;
+      --muted: 220 30% 18%;
+      --muted-foreground: 180 20% 60%;
+      --accent: 174 100% 40%;
+      --border: 220 30% 20%;
+      --destructive: 0 84% 60%;
+      --success: 142 76% 36%;
+      --warning: 38 92% 50%;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .hidden { display: none !important; }
+
+    /* Background Effects */
+    .bg-effects {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .bg-glow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(150px);
+    }
+
+    .bg-glow-1 {
+      top: -20%;
+      right: -10%;
+      width: 600px;
+      height: 600px;
+      background: hsl(var(--primary) / 0.15);
+    }
+
+    .bg-glow-2 {
+      bottom: -20%;
+      left: -10%;
+      width: 500px;
+      height: 500px;
+      background: hsl(var(--accent) / 0.1);
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    /* Typography */
+    .text-gradient {
+      background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    h1 { font-size: 3rem; font-weight: 800; }
+    h2 { font-size: 2rem; font-weight: 700; }
+    h3 { font-size: 1.5rem; font-weight: 600; }
+    h4 { font-size: 1.25rem; font-weight: 600; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.3s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+      color: hsl(var(--primary-foreground));
+      box-shadow: 0 10px 30px -10px hsl(var(--primary) / 0.5);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px -10px hsl(var(--primary) / 0.6);
+    }
+
+    .btn-secondary {
+      background: hsl(var(--secondary));
+      color: hsl(var(--secondary-foreground));
+      border: 1px solid hsl(var(--border));
+    }
+
+    .btn-secondary:hover {
+      background: hsl(var(--muted));
+      border-color: hsl(var(--primary) / 0.5);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: hsl(var(--foreground));
+      border: 1px solid hsl(var(--border));
+    }
+
+    .btn-outline:hover {
+      background: hsl(var(--primary) / 0.1);
+      border-color: hsl(var(--primary));
+    }
+
+    .btn-success {
+      background: hsl(var(--success));
+      color: white;
+    }
+
+    .btn-destructive {
+      background: hsl(var(--destructive));
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+
+    .btn-lg {
+      padding: 1rem 2rem;
+      font-size: 1.125rem;
+    }
+
+    /* Cards */
+    .card {
+      background: hsl(var(--card) / 0.8);
+      backdrop-filter: blur(20px);
+      border: 1px solid hsl(var(--border));
+      border-radius: 1rem;
+      padding: 1.5rem;
+    }
+
+    .card-glass {
+      background: linear-gradient(135deg, hsl(var(--card) / 0.6), hsl(var(--card) / 0.3));
+      backdrop-filter: blur(20px);
+      border: 1px solid hsl(var(--border) / 0.5);
+    }
+
+    /* Inputs */
+    .input-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: hsl(var(--secondary));
+      border: 1px solid hsl(var(--border));
+      border-radius: 0.5rem;
+      color: hsl(var(--foreground));
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: hsl(var(--primary));
+      box-shadow: 0 0 0 3px hsl(var(--primary) / 0.2);
+    }
+
+    .input::placeholder {
+      color: hsl(var(--muted-foreground));
+    }
+
+    select.input {
+      cursor: pointer;
+    }
+
+    textarea.input {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    /* Tables */
+    .table-container {
+      overflow-x: auto;
+      border-radius: 0.75rem;
+      border: 1px solid hsl(var(--border));
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+
+    th {
+      background: hsl(var(--muted));
+      font-weight: 600;
+      color: hsl(var(--muted-foreground));
+    }
+
+    tr:hover {
+      background: hsl(var(--muted) / 0.5);
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      padding: 0.75rem 1.25rem;
+      background: transparent;
+      border: 1px solid hsl(var(--border));
+      border-radius: 0.5rem;
+      color: hsl(var(--muted-foreground));
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      background: hsl(var(--muted));
+    }
+
+    .tab.active {
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+      border-color: hsl(var(--primary));
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-primary {
+      background: hsl(var(--primary) / 0.2);
+      color: hsl(var(--primary));
+    }
+
+    .badge-success {
+      background: hsl(var(--success) / 0.2);
+      color: hsl(var(--success));
+    }
+
+    .badge-warning {
+      background: hsl(var(--warning) / 0.2);
+      color: hsl(var(--warning));
+    }
+
+    .badge-destructive {
+      background: hsl(var(--destructive) / 0.2);
+      color: hsl(var(--destructive));
+    }
+
+    /* Grid */
+    .grid { display: grid; gap: 1.5rem; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+
+    /* Flexbox utilities */
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .items-center { align-items: center; }
+    .justify-center { justify-content: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-2 { gap: 0.5rem; }
+    .gap-4 { gap: 1rem; }
+    .gap-6 { gap: 1.5rem; }
+
+    /* Spacing */
+    .p-4 { padding: 1rem; }
+    .p-6 { padding: 1.5rem; }
+    .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-4 { margin-bottom: 1rem; }
+    .mb-6 { margin-bottom: 1.5rem; }
+    .mb-8 { margin-bottom: 2rem; }
+    .mt-4 { margin-top: 1rem; }
+    .mt-6 { margin-top: 1.5rem; }
+
+    /* Text */
+    .text-center { text-align: center; }
+    .text-sm { font-size: 0.875rem; }
+    .text-lg { font-size: 1.125rem; }
+    .text-xl { font-size: 1.25rem; }
+    .text-muted { color: hsl(var(--muted-foreground)); }
+    .text-primary { color: hsl(var(--primary)); }
+    .text-success { color: hsl(var(--success)); }
+    .text-destructive { color: hsl(var(--destructive)); }
+    .font-bold { font-weight: 700; }
+
+    /* Progress Bar */
+    .progress-bar {
+      height: 0.5rem;
+      background: hsl(var(--muted));
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
+      transition: width 0.3s ease;
+    }
+
+    /* Icon placeholder styling */
+    .icon {
+      width: 1.25rem;
+      height: 1.25rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Landing Page */
+    #landing {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .landing-title {
+      font-size: 4rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    @media (max-width: 768px) {
+      .landing-title { font-size: 2.5rem; }
+    }
+
+    .landing-subtitle {
+      font-size: 1.25rem;
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 3rem;
+      text-align: center;
+      max-width: 600px;
+    }
+
+    .landing-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2rem;
+      max-width: 800px;
+      width: 100%;
+    }
+
+    @media (max-width: 640px) {
+      .landing-cards { grid-template-columns: 1fr; }
+    }
+
+    .landing-card {
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .landing-card:hover {
+      transform: translateY(-5px);
+      border-color: hsl(var(--primary));
+      box-shadow: 0 20px 40px -20px hsl(var(--primary) / 0.3);
+    }
+
+    .landing-card-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 1.5rem;
+      background: linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.1));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+    }
+
+    /* Login Pages */
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 450px;
+    }
+
+    /* Dashboard */
+    .dashboard {
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    .dashboard-header {
+      background: hsl(var(--card) / 0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid hsl(var(--border));
+      padding: 1rem 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .dashboard-content {
+      padding: 2rem 0;
+    }
+
+    /* Stats Cards */
+    .stat-card {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+    }
+
+    .stat-label {
+      color: hsl(var(--muted-foreground));
+      font-size: 0.875rem;
+    }
+
+    /* Quiz Interface */
+    .quiz-container {
+      min-height: 100vh;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .quiz-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .quiz-timer {
+      font-size: 2rem;
+      font-weight: 800;
+    }
+
+    .quiz-question-card {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .quiz-options {
+      display: grid;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .quiz-option {
+      padding: 1.25rem;
+      background: hsl(var(--secondary));
+      border: 2px solid hsl(var(--border));
+      border-radius: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+      font-size: 1rem;
+      color: hsl(var(--foreground));
+    }
+
+    .quiz-option:hover {
+      border-color: hsl(var(--primary));
+      background: hsl(var(--primary) / 0.1);
+    }
+
+    .quiz-option.selected {
+      border-color: hsl(var(--primary));
+      background: hsl(var(--primary) / 0.2);
+    }
+
+    .quiz-option.correct {
+      border-color: hsl(var(--success));
+      background: hsl(var(--success) / 0.2);
+    }
+
+    .quiz-option.wrong {
+      border-color: hsl(var(--destructive));
+      background: hsl(var(--destructive) / 0.2);
+    }
+
+    /* Podium */
+    .podium {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .podium-item {
+      text-align: center;
+      padding: 1.5rem;
+    }
+
+    .podium-rank {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 1rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+    }
+
+    .podium-gold { background: linear-gradient(135deg, #ffd700, #ffb700); color: #000; }
+    .podium-silver { background: linear-gradient(135deg, #c0c0c0, #a0a0a0); color: #000; }
+    .podium-bronze { background: linear-gradient(135deg, #cd7f32, #b8722e); color: #fff; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(5px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+
+    .modal {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: 1rem;
+      padding: 2rem;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      z-index: 2000;
+    }
+
+    .toast {
+      background: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+      border-radius: 0.75rem;
+      padding: 1rem 1.5rem;
+      margin-top: 0.5rem;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+      animation: slideIn 0.3s ease;
+    }
+
+    .toast-success { border-left: 4px solid hsl(var(--success)); }
+    .toast-error { border-left: 4px solid hsl(var(--destructive)); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease forwards;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: hsl(var(--muted));
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: hsl(var(--border));
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--primary) / 0.5);
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Effects -->
+  <div class="bg-effects">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Landing Page -->
+  <section id="landing" class="animate-fadeIn">
+    <h1 class="landing-title">
+      <span class="text-gradient">Quiz</span> Application
+    </h1>
+    <p class="landing-subtitle">
+      Interactive quiz platform with real-time scoring, level progression, and comprehensive analytics
+    </p>
+    <div class="landing-cards">
+      <div class="card card-glass landing-card" onclick="showPage('hostLogin')">
+        <div class="landing-card-icon">👨‍💼</div>
+        <h3 class="mb-2">Host Portal</h3>
+        <p class="text-muted text-sm">Manage shifts, upload questions, track participants and view leaderboards</p>
+      </div>
+      <div class="card card-glass landing-card" onclick="showPage('participantLogin')">
+        <div class="landing-card-icon">🎓</div>
+        <h3 class="mb-2">Participant Portal</h3>
+        <p class="text-muted text-sm">Join quizzes, track your progress and compete with others</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Host Login -->
+  <section id="hostLogin" class="login-container hidden">
+    <div class="card login-card animate-fadeIn">
+      <div class="text-center mb-6">
+        <h2 class="text-gradient mb-2">Host Login</h2>
+        <p class="text-muted">Access the host dashboard</p>
+      </div>
+      <form onsubmit="handleHostLogin(event)">
+        <div class="input-group">
+          <label>Email</label>
+          <input type="email" class="input" id="hostEmail" placeholder="admin@quiz.com" required>
+        </div>
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" class="input" id="hostPassword" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Login as Host</button>
+      </form>
+      <p class="text-center text-muted text-sm mt-4">
+        <a href="#" onclick="showPage('landing')" class="text-primary">← Back to Home</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- Participant Login -->
+  <section id="participantLogin" class="login-container hidden">
+    <div class="card login-card animate-fadeIn">
+      <div class="text-center mb-6">
+        <h2 class="text-gradient mb-2">Participant Login</h2>
+        <p class="text-muted">Enter your ID and password to access quizzes</p>
+      </div>
+      <form onsubmit="handleParticipantLogin(event)">
+        <div class="input-group">
+          <label>Participant ID</label>
+          <input type="text" class="input" id="participantId" placeholder="e.g., 100001" required>
+        </div>
+        <div class="input-group">
+          <label>Password</label>
+          <input type="password" class="input" id="participantPassword" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Login as Participant</button>
+      </form>
+      <p class="text-center text-muted text-sm mt-4">
+        <a href="#" onclick="showPage('landing')" class="text-primary">← Back to Home</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- Host Dashboard -->
+  <section id="hostDashboard" class="dashboard hidden">
+    <header class="dashboard-header">
+      <div class="container flex justify-between items-center">
+        <h3 class="text-gradient">Host Dashboard</h3>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+      </div>
+    </header>
+    <div class="dashboard-content container">
+      <div class="tabs">
+        <button class="tab active" onclick="switchHostTab('shifts')">📅 Shifts</button>
+        <button class="tab" onclick="switchHostTab('questions')">❓ Questions</button>
+        <button class="tab" onclick="switchHostTab('participants')">👥 Participants</button>
+        <button class="tab" onclick="switchHostTab('leaderboard')">🏆 Leaderboard</button>
+      </div>
+      
+      <!-- Shifts Tab -->
+      <div id="hostShifts" class="animate-fadeIn">
+        <div class="flex justify-between items-center mb-6">
+          <h3>Manage Shifts</h3>
+          <button class="btn btn-primary" onclick="openShiftModal()">+ Add Shift</button>
+        </div>
+        <div id="shiftsList" class="grid grid-2"></div>
+      </div>
+
+      <!-- Questions Tab -->
+      <div id="hostQuestions" class="hidden animate-fadeIn">
+        <div class="card mb-6">
+          <h4 class="mb-4">Upload Questions</h4>
+          <form onsubmit="addQuestion(event)">
+            <div class="input-group">
+              <label>Select Shift</label>
+              <select class="input" id="questionShift" required></select>
+            </div>
+            <div class="input-group">
+              <label>Question</label>
+              <textarea class="input" id="questionText" placeholder="Enter your question..." required></textarea>
+            </div>
+            <div class="grid grid-2">
+              <div class="input-group">
+                <label>Option A</label>
+                <input type="text" class="input" id="optionA" required>
+              </div>
+              <div class="input-group">
+                <label>Option B</label>
+                <input type="text" class="input" id="optionB" required>
+              </div>
+              <div class="input-group">
+                <label>Option C</label>
+                <input type="text" class="input" id="optionC" required>
+              </div>
+              <div class="input-group">
+                <label>Option D</label>
+                <input type="text" class="input" id="optionD" required>
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Correct Answer</label>
+              <select class="input" id="correctAnswer" required>
+                <option value="0">Option A</option>
+                <option value="1">Option B</option>
+                <option value="2">Option C</option>
+                <option value="3">Option D</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Question</button>
+          </form>
+        </div>
+        <div id="questionsList"></div>
+      </div>
+
+      <!-- Participants Tab -->
+      <div id="hostParticipants" class="hidden animate-fadeIn">
+        <div class="flex justify-between items-center mb-6">
+          <h3>Manage Participants</h3>
+          <div class="flex gap-2">
+            <button class="btn btn-primary" onclick="openParticipantModal()">+ Add Participant</button>
+            <label class="btn btn-outline" for="participantsFileInput" style="margin:0;">📁 Import File</label>
+            <input id="participantsFileInput" type="file" accept=".csv,application/json,text/csv" class="hidden" onchange="importParticipantsFile(this)">
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Level</th>
+                <th>Correct</th>
+                <th>Wrong</th>
+                <th>Score</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="participantsTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Leaderboard Tab -->
+      <div id="hostLeaderboard" class="hidden animate-fadeIn">
+        <div class="flex justify-between items-center mb-6">
+          <h3>Leaderboard</h3>
+          <div class="flex gap-2 items-center">
+            <label class="text-muted text-sm" for="leaderboardSort">Sort:</label>
+            <select id="leaderboardSort" class="input" onchange="renderLeaderboard()">
+              <option value="score">Score (desc)</option>
+              <option value="time">Submission Time (asc)</option>
+              <option value="level">Level (desc)</option>
+            </select>
+            <button id="leaderboardOrderBtn" class="btn btn-outline" onclick="toggleLeaderboardOrder();">Order: Desc</button>
+            <button class="btn btn-outline" onclick="downloadLeaderboard()">📥 Download CSV</button>
+          </div>
+        </div>
+        <div id="podium" class="podium"></div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th>Level</th>
+                <th>Score</th>
+                <th>Accuracy</th>
+                <th>Submission Time</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div id="hostSettings" class="hidden animate-fadeIn">
+        <div class="card">
+          <h4 class="mb-4">Quiz Settings</h4>
+          <p class="text-muted mb-4">Common password is now managed in <strong>participants.json</strong></p>
+          <p class="text-muted">Edit the <code>commonPassword</code> field in the participants.json file to change the password for all participants.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Participant Dashboard -->
+  <section id="participantDashboard" class="dashboard hidden">
+    <header class="dashboard-header">
+      <div class="container flex justify-between items-center">
+        <h3 class="text-gradient">Welcome, <span id="participantName"></span></h3>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+      </div>
+    </header>
+    <div class="dashboard-content container">
+      <!-- Stats -->
+      <div class="grid grid-4 mb-8" id="participantStats"></div>
+      
+      <!-- Available Shifts -->
+      <h3 class="mb-4">Available Quizzes</h3>
+      <div id="availableShifts" class="grid grid-2"></div>
+    </div>
+  </section>
+
+  <!-- Quiz Page -->
+  <section id="quizPage" class="quiz-container hidden">
+    <div class="quiz-header">
+      <div>
+        <h3 id="quizShiftName" class="text-gradient"></h3>
+        <p class="text-muted">Question <span id="currentQuestionNum">1</span> of <span id="totalQuestions">10</span></p>
+      </div>
+      <div class="text-center">
+        <div class="text-muted text-sm">Time Remaining</div>
+        <div id="quizTimer" class="quiz-timer text-primary">10:00</div>
+      </div>
+      <div class="text-right">
+        <span class="badge badge-primary">Level <span id="currentLevel">1</span></span>
+      </div>
+    </div>
+    
+    <div class="progress-bar mb-6">
+      <div id="quizProgress" class="progress-fill" style="width: 0%"></div>
+    </div>
+    
+    <div class="card quiz-question-card animate-fadeIn">
+      <h3 id="questionText" class="mb-4"></h3>
+      <div id="optionsContainer" class="quiz-options"></div>
+      <div class="flex justify-between mt-6">
+        <button id="skipBtn" class="btn btn-outline" onclick="skipQuestion()">Skip</button>
+        <button id="nextBtn" class="btn btn-primary hidden" onclick="saveAndNext()">Save & Next</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quiz Results Modal -->
+  <div id="resultsModal" class="modal-overlay hidden">
+    <div class="modal text-center">
+      <h2 class="text-gradient mb-4">Quiz Complete!</h2>
+      <div class="grid grid-2 gap-4 mb-6">
+        <div class="card stat-card">
+          <div class="stat-value text-success" id="resultCorrect">0</div>
+          <div class="stat-label">Correct</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-value text-destructive" id="resultWrong">0</div>
+          <div class="stat-label">Wrong</div>
+        </div>
+      </div>
+      <p class="mb-4" id="resultMessage"></p>
+      <button class="btn btn-primary" onclick="finishQuiz()">Back to Dashboard</button>
+    </div>
+  </div>
+
+  <!-- Add Shift Modal -->
+  <div id="shiftModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 class="mb-4">Add New Shift</h3>
+      <form onsubmit="addShift(event)">
+        <div class="input-group">
+          <label>Shift Name</label>
+          <input type="text" class="input" id="shiftName" placeholder="Morning Shift" required>
+        </div>
+        <div class="grid grid-2">
+          <div class="input-group">
+            <label>Start Time</label>
+            <input type="datetime-local" class="input" id="shiftStart" required>
+          </div>
+          <div class="input-group">
+            <label>End Time</label>
+            <input type="datetime-local" class="input" id="shiftEnd" required>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Duration (minutes)</label>
+          <input type="number" class="input" id="shiftDuration" value="30" min="5" required>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button type="button" class="btn btn-outline" onclick="closeModal('shiftModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Shift</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Participant Modal -->
+  <div id="participantModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 class="mb-4">Add New Participant</h3>
+      <form onsubmit="addParticipant(event)">
+        <div class="input-group">
+          <label>Name</label>
+          <input type="text" class="input" id="newParticipantName" placeholder="John Doe" required>
+        </div>
+        <div class="input-group">
+          <label>Email</label>
+          <input type="email" class="input" id="newParticipantEmail" placeholder="john@example.com" required>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button type="button" class="btn btn-outline" onclick="closeModal('participantModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Participant</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // =====================
+    // STATE MANAGEMENT
+    // =====================
+    let state = {
+      currentPage: 'landing',
+      currentUser: null,
+      userType: null, // 'host' or 'participant'
+      shifts: [
+        { id: '1', name: 'Morning Shift', startTime: '2025-01-15T09:00', endTime: '2025-01-15T12:00', duration: 30, isActive: true },
+        { id: '2', name: 'Afternoon Shift', startTime: '2025-01-15T14:00', endTime: '2025-01-15T17:00', duration: 45, isActive: true },
+        { id: '3', name: 'Evening Shift', startTime: '2025-01-15T18:00', endTime: '2025-01-15T21:00', duration: 30, isActive: false }
+      ],
+      participants: [
+        { id: '1', name: 'Alice Johnson', email: 'alice@example.com', level: 3, correctAnswers: 25, wrongAnswers: 5, totalScore: 250, assignedShifts: ['1', '2'] },
+        { id: '2', name: 'Bob Smith', email: 'bob@example.com', level: 2, correctAnswers: 18, wrongAnswers: 12, totalScore: 180, assignedShifts: ['1'] },
+        { id: '3', name: 'Carol Williams', email: 'carol@example.com', level: 4, correctAnswers: 35, wrongAnswers: 8, totalScore: 350, assignedShifts: ['2', '3'] },
+        { id: '4', name: 'David Brown', email: 'david@example.com', level: 1, correctAnswers: 8, wrongAnswers: 7, totalScore: 80, assignedShifts: ['1', '3'] },
+        { id: '5', name: 'Eva Martinez', email: 'eva@example.com', level: 5, correctAnswers: 45, wrongAnswers: 3, totalScore: 450, assignedShifts: ['1', '2', '3'] }
+      ],
+      questions: [
+        { id: '1', shiftId: '1', question: 'What is the capital of France?', options: ['London', 'Berlin', 'Paris', 'Madrid'], correctAnswer: 2 },
+        { id: '2', shiftId: '1', question: 'Which planet is known as the Red Planet?', options: ['Venus', 'Mars', 'Jupiter', 'Saturn'], correctAnswer: 1 },
+        { id: '3', shiftId: '1', question: 'What is 15 × 8?', options: ['100', '120', '150', '180'], correctAnswer: 1 },
+        { id: '4', shiftId: '1', question: 'Who wrote "Romeo and Juliet"?', options: ['Charles Dickens', 'William Shakespeare', 'Jane Austen', 'Mark Twain'], correctAnswer: 1 },
+        { id: '5', shiftId: '1', question: 'What is the chemical symbol for Gold?', options: ['Go', 'Gd', 'Au', 'Ag'], correctAnswer: 2 },
+        { id: '6', shiftId: '2', question: 'What is the largest ocean on Earth?', options: ['Atlantic', 'Indian', 'Arctic', 'Pacific'], correctAnswer: 3 },
+        { id: '7', shiftId: '2', question: 'In which year did World War II end?', options: ['1943', '1944', '1945', '1946'], correctAnswer: 2 },
+        { id: '8', shiftId: '2', question: 'What is the square root of 144?', options: ['10', '11', '12', '14'], correctAnswer: 2 },
+        { id: '9', shiftId: '3', question: 'Which element has the atomic number 1?', options: ['Helium', 'Hydrogen', 'Oxygen', 'Carbon'], correctAnswer: 1 },
+        { id: '10', shiftId: '3', question: 'What is the capital of Japan?', options: ['Seoul', 'Beijing', 'Tokyo', 'Bangkok'], correctAnswer: 2 }
+      ],
+      // Quiz state
+      currentQuiz: {
+        shiftId: null,
+        questions: [],
+        currentIndex: 0,
+        correctCount: 0,
+        wrongCount: 0,
+        timeRemaining: 0,
+        consecutiveCorrect: 0,
+        consecutiveWrong: 0,
+        answered: false
+      },
+      quizTimer: null,
+      commonPassword: 'quiz123'
+    };
+
+    // =====================
+    // UTILITY FUNCTIONS
+    // =====================
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // =====================
+    // PAGE NAVIGATION
+    // =====================
+    function showPage(pageId) {
+      document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+      document.getElementById(pageId).classList.remove('hidden');
+      state.currentPage = pageId;
+      
+      // Render content based on page
+      if (pageId === 'hostDashboard') {
+        renderHostDashboard();
+      } else if (pageId === 'participantDashboard') {
+        renderParticipantDashboard();
+      }
+    }
+
+    function logout() {
+      state.currentUser = null;
+      state.userType = null;
+      if (state.quizTimer) clearInterval(state.quizTimer);
+      showPage('landing');
+      showToast('Logged out successfully');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    // =====================
+    // AUTHENTICATION
+    // =====================
+    function handleHostLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('hostEmail').value;
+      const password = document.getElementById('hostPassword').value;
+      
+      // Load and validate against hosts.json
+      fetch('hosts.json')
+        .then(response => {
+          if (!response.ok) throw new Error('Unable to load host credentials');
+          return response.json();
+        })
+        .then(data => {
+          // Find host with matching email and password
+          const host = data.hosts.find(h => 
+            h.email.toLowerCase() === email.toLowerCase() && h.password === password
+          );
+
+          if (host) {
+            state.currentUser = { id: host.id, email: host.email, name: host.name, type: 'host' };
+            state.userType = 'host';
+            showPage('hostDashboard');
+            showToast(`Welcome, ${host.name}!`);
+          } else {
+            document.getElementById('hostPassword').value = '';
+            showToast('Invalid email or password. Check your credentials.', 'error');
+          }
+        })
+        .catch(error => {
+          console.error('Login error:', error);
+          showToast('Unable to verify credentials. Please try again.', 'error');
+        });
+    }
+
+    function handleParticipantLogin(e) {
+      e.preventDefault();
+      const participantId = document.getElementById('participantId').value.trim();
+      const password = document.getElementById('participantPassword').value.trim();
+      // Load participants and hosts to validate login
+      Promise.all([
+        fetch('participants.json').then(r => { if (!r.ok) throw new Error('Unable to load participant data'); return r.json(); }),
+        fetch('hosts.json').then(r => { if (!r.ok) return null; return r.json(); }).catch(() => null)
+      ])
+        .then(([pData, hData]) => {
+          const participant = pData.participants.find(p => p.id === participantId);
+
+          // Allow hosts to use the participant login form (by id or email)
+          let hostMatch = null;
+          if (hData && hData.hosts) {
+            hostMatch = hData.hosts.find(h => h.id === participantId || h.email.toLowerCase() === participantId.toLowerCase());
+          }
+
+          // Host login via participant form (if host creds provided)
+          if (hostMatch && password === hostMatch.password) {
+            state.currentUser = { id: hostMatch.id, email: hostMatch.email, name: hostMatch.name, type: 'host' };
+            state.userType = 'host';
+            showPage('hostDashboard');
+            showToast(`Welcome, ${hostMatch.name}! (host)`);
+            return;
+          }
+
+          // Validate password matches the common password from participants.json
+          if (participant && password === pData.commonPassword) {
+            // Create user object with participant ID as name for now; default level 0 (0-5 range)
+            state.currentUser = {
+              id: participantId,
+              name: `Participant ${participantId}`,
+              email: participantId,
+              level: 0,
+              correctAnswers: 0,
+              wrongAnswers: 0,
+              totalScore: 0,
+              assignedShifts: state.shifts.filter(s => s.isActive).map(s => s.id),
+              submissionTime: null
+            };
+            state.userType = 'participant';
+            showPage('participantDashboard');
+            showToast(`Welcome, Participant ${participantId}!`);
+          } else if (!participant) {
+            document.getElementById('participantPassword').value = '';
+            showToast('Participant ID not found.', 'error');
+          } else {
+            document.getElementById('participantPassword').value = '';
+            showToast('Invalid password.', 'error');
+          }
+        })
+        .catch(error => {
+          console.error('Login error:', error);
+          showToast('Unable to verify credentials. Please try again.', 'error');
+        });
+    }
+
+    // =====================
+    // HOST DASHBOARD
+    // =====================
+    function switchHostTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('hostShifts').classList.add('hidden');
+      document.getElementById('hostQuestions').classList.add('hidden');
+      document.getElementById('hostParticipants').classList.add('hidden');
+      document.getElementById('hostLeaderboard').classList.add('hidden');
+
+      if (tab === 'shifts') {
+        document.getElementById('hostShifts').classList.remove('hidden');
+        renderShifts();
+      } else if (tab === 'questions') {
+        document.getElementById('hostQuestions').classList.remove('hidden');
+        renderQuestions();
+      } else if (tab === 'participants') {
+        document.getElementById('hostParticipants').classList.remove('hidden');
+        renderParticipantsTable();
+      } else if (tab === 'leaderboard') {
+        document.getElementById('hostLeaderboard').classList.remove('hidden');
+        renderLeaderboard();
+      }
+    }
+
+    function renderHostDashboard() {
+      renderShifts();
+      renderQuestionShiftOptions();
+    }
+
+    function renderShifts() {
+      const container = document.getElementById('shiftsList');
+      container.innerHTML = state.shifts.map(shift => `
+        <div class="card">
+          <div class="flex justify-between items-center mb-4">
+            <h4>${shift.name}</h4>
+            <span class="badge ${shift.isActive ? 'badge-success' : 'badge-warning'}">
+              ${shift.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+          <p class="text-muted text-sm mb-2">⏰ ${new Date(shift.startTime).toLocaleString()} - ${new Date(shift.endTime).toLocaleTimeString()}</p>
+          <p class="text-muted text-sm mb-4">⏱️ Duration: ${shift.duration} minutes</p>
+          <p class="text-sm mb-4">📝 ${state.questions.filter(q => q.shiftId === shift.id).length} questions</p>
+          <div class="flex gap-2">
+            <button class="btn btn-sm ${shift.isActive ? 'btn-destructive' : 'btn-success'}" onclick="toggleShift('${shift.id}')">
+              ${shift.isActive ? 'Deactivate' : 'Activate'}
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="deleteShift('${shift.id}')">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openShiftModal() {
+      document.getElementById('shiftModal').classList.remove('hidden');
+    }
+
+    function addShift(e) {
+      e.preventDefault();
+      const shift = {
+        id: generateId(),
+        name: document.getElementById('shiftName').value,
+        startTime: document.getElementById('shiftStart').value,
+        endTime: document.getElementById('shiftEnd').value,
+        duration: parseInt(document.getElementById('shiftDuration').value),
+        isActive: true
+      };
+      state.shifts.push(shift);
+      closeModal('shiftModal');
+      renderShifts();
+      renderQuestionShiftOptions();
+      showToast('Shift added successfully');
+      e.target.reset();
+    }
+
+    function toggleShift(id) {
+      const shift = state.shifts.find(s => s.id === id);
+      if (shift) {
+        shift.isActive = !shift.isActive;
+        renderShifts();
+        showToast(`Shift ${shift.isActive ? 'activated' : 'deactivated'}`);
+      }
+    }
+
+    function deleteShift(id) {
+      state.shifts = state.shifts.filter(s => s.id !== id);
+      state.questions = state.questions.filter(q => q.shiftId !== id);
+      renderShifts();
+      renderQuestionShiftOptions();
+      showToast('Shift deleted');
+    }
+
+    // Questions
+    function renderQuestionShiftOptions() {
+      const select = document.getElementById('questionShift');
+      select.innerHTML = state.shifts.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    }
+
+    function addQuestion(e) {
+      e.preventDefault();
+      const question = {
+        id: generateId(),
+        shiftId: document.getElementById('questionShift').value,
+        question: document.getElementById('questionText').value,
+        options: [
+          document.getElementById('optionA').value,
+          document.getElementById('optionB').value,
+          document.getElementById('optionC').value,
+          document.getElementById('optionD').value
+        ],
+        correctAnswer: parseInt(document.getElementById('correctAnswer').value)
+      };
+      state.questions.push(question);
+      renderQuestions();
+      showToast('Question added successfully');
+      e.target.reset();
+    }
+
+    function renderQuestions() {
+      const container = document.getElementById('questionsList');
+      const groupedByShift = {};
+      state.questions.forEach(q => {
+        if (!groupedByShift[q.shiftId]) groupedByShift[q.shiftId] = [];
+        groupedByShift[q.shiftId].push(q);
+      });
+
+      container.innerHTML = Object.entries(groupedByShift).map(([shiftId, questions]) => {
+        const shift = state.shifts.find(s => s.id === shiftId);
+        return `
+          <div class="card mb-4">
+            <h4 class="mb-4">${shift ? shift.name : 'Unknown Shift'} (${questions.length} questions)</h4>
+            ${questions.map((q, i) => `
+              <div class="p-4 mb-2" style="background: hsl(var(--muted)); border-radius: 0.5rem;">
+                <p class="font-bold mb-2">${i + 1}. ${q.question}</p>
+                <div class="grid grid-2 gap-2 text-sm">
+                  ${q.options.map((opt, idx) => `
+                    <span class="${idx === q.correctAnswer ? 'text-success' : 'text-muted'}">
+                      ${String.fromCharCode(65 + idx)}. ${opt} ${idx === q.correctAnswer ? '✓' : ''}
+                    </span>
+                  `).join('')}
+                </div>
+                <button class="btn btn-sm btn-outline mt-2" onclick="deleteQuestion('${q.id}')">Delete</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }).join('') || '<p class="text-muted text-center">No questions added yet.</p>';
+    }
+
+    function deleteQuestion(id) {
+      state.questions = state.questions.filter(q => q.id !== id);
+      renderQuestions();
+      showToast('Question deleted');
+    }
+
+    // Participants
+    function renderParticipantsTable() {
+      const tbody = document.getElementById('participantsTable');
+      tbody.innerHTML = state.participants.map(p => `
+        <tr>
+          <td>${p.name}</td>
+          <td>${p.email}</td>
+          <td><span class="badge badge-primary">Level ${p.level}</span></td>
+          <td class="text-success">${p.correctAnswers}</td>
+          <td class="text-destructive">${p.wrongAnswers}</td>
+          <td>${p.totalScore}</td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="resetParticipant('${p.id}')">Reset</button>
+            <button class="btn btn-sm btn-destructive" onclick="deleteParticipant('${p.id}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openParticipantModal() {
+      document.getElementById('participantModal').classList.remove('hidden');
+    }
+
+    function addParticipant(e) {
+      e.preventDefault();
+      const participant = {
+        id: generateId(),
+        name: document.getElementById('newParticipantName').value,
+        email: document.getElementById('newParticipantEmail').value,
+        level: 1,
+        correctAnswers: 0,
+        wrongAnswers: 0,
+        totalScore: 0,
+        assignedShifts: state.shifts.filter(s => s.isActive).map(s => s.id)
+      };
+      state.participants.push(participant);
+      closeModal('participantModal');
+      renderParticipantsTable();
+      showToast('Participant added successfully');
+      e.target.reset();
+    }
+
+    function importParticipantsFile(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target.result;
+        try {
+          let parsed = [];
+
+          if (file.name.toLowerCase().endsWith('.json')) {
+            const data = JSON.parse(text);
+            if (Array.isArray(data)) parsed = data;
+            else if (data.participants && Array.isArray(data.participants)) parsed = data.participants;
+            else throw new Error('JSON should be an array or { participants: [...] }');
+          } else {
+            // parse CSV
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length === 0) throw new Error('Empty file');
+            const header = lines.shift().split(',').map(h => h.trim().toLowerCase());
+            const idx = {};
+            header.forEach((h, i) => idx[h] = i);
+
+            parsed = lines.map(line => {
+              const cols = line.split(',').map(c => c.trim());
+              return {
+                id: cols[idx['id']] || generateId(),
+                name: cols[idx['name']] || (`Participant ${cols[idx['id']] || ''}`),
+                email: cols[idx['email']] || '',
+                level: Math.min(5, Math.max(0, parseInt(cols[idx['level']] || '0') || 0)),
+                correctAnswers: parseInt(cols[idx['correct']] || cols[idx['correctanswers']] || '0') || 0,
+                wrongAnswers: parseInt(cols[idx['wrong']] || cols[idx['wronganswers']] || '0') || 0,
+                totalScore: parseInt(cols[idx['score']] || cols[idx['totalscore']] || '0') || 0,
+                assignedShifts: state.shifts.filter(s => s.isActive).map(s => s.id)
+              };
+            });
+          }
+
+          // merge parsed into state.participants (by id)
+          parsed.forEach(p => {
+            if (!p.id) p.id = generateId();
+            const existing = state.participants.find(x => x.id === p.id);
+            if (existing) {
+              Object.assign(existing, p);
+            } else {
+              // ensure required fields
+              const newP = {
+                id: p.id,
+                name: p.name || `Participant ${p.id}`,
+                email: p.email || '',
+                level: Math.min(5, Math.max(0, Number(p.level) || 0)),
+                correctAnswers: Number(p.correctAnswers) || 0,
+                wrongAnswers: Number(p.wrongAnswers) || 0,
+                totalScore: Number(p.totalScore) || 0,
+                assignedShifts: p.assignedShifts || state.shifts.filter(s => s.isActive).map(s => s.id)
+              };
+              state.participants.push(newP);
+            }
+          });
+
+          renderParticipantsTable();
+          showToast('Participants imported successfully');
+          input.value = '';
+        } catch (err) {
+          console.error('Import error', err);
+          showToast('Failed to import participants: ' + (err.message || ''), 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetParticipant(id) {
+      const p = state.participants.find(p => p.id === id);
+      if (p) {
+        p.level = 1;
+        p.correctAnswers = 0;
+        p.wrongAnswers = 0;
+        p.totalScore = 0;
+        renderParticipantsTable();
+        showToast('Participant stats reset');
+      }
+    }
+
+    function deleteParticipant(id) {
+      state.participants = state.participants.filter(p => p.id !== id);
+      renderParticipantsTable();
+      showToast('Participant deleted');
+    }
+
+    // Leaderboard
+    let leaderboardOrderDesc = true; // toggled by UI
+    function toggleLeaderboardOrder() {
+      leaderboardOrderDesc = !leaderboardOrderDesc;
+      const btn = document.getElementById('leaderboardOrderBtn');
+      if (btn) btn.textContent = leaderboardOrderDesc ? 'Order: Desc' : 'Order: Asc';
+      renderLeaderboard();
+    }
+
+    function renderLeaderboard() {
+      const sortBy = (document.getElementById('leaderboardSort') && document.getElementById('leaderboardSort').value) || 'score';
+
+      const sorted = [...state.participants].sort((a, b) => {
+        if (sortBy === 'score') {
+          return leaderboardOrderDesc ? b.totalScore - a.totalScore : a.totalScore - b.totalScore;
+        } else if (sortBy === 'level') {
+          return leaderboardOrderDesc ? b.level - a.level : a.level - b.level;
+        } else if (sortBy === 'time') {
+          const ta = a.submissionTime ? new Date(a.submissionTime).getTime() : Infinity;
+          const tb = b.submissionTime ? new Date(b.submissionTime).getTime() : Infinity;
+          return leaderboardOrderDesc ? tb - ta : ta - tb;
+        }
+        return 0;
+      });
+
+      // Podium (score-based top 3)
+      if (sorted.length >= 3) {
+        const podiumHtml = `
+          <div class="podium-item card" style="order: 2;">
+            <div class="podium-rank podium-silver">2</div>
+            <h4>${sorted[1].name}</h4>
+            <p class="text-primary text-lg font-bold">${sorted[1].totalScore}</p>
+          </div>
+          <div class="podium-item card" style="order: 1; transform: translateY(-20px);">
+            <div class="podium-rank podium-gold">1</div>
+            <h4>${sorted[0].name}</h4>
+            <p class="text-primary text-xl font-bold">${sorted[0].totalScore}</p>
+          </div>
+          <div class="podium-item card" style="order: 3;">
+            <div class="podium-rank podium-bronze">3</div>
+            <h4>${sorted[2].name}</h4>
+            <p class="text-primary text-lg font-bold">${sorted[2].totalScore}</p>
+          </div>
+        `;
+        document.getElementById('podium').innerHTML = podiumHtml;
+      }
+
+      // Table
+      const tbody = document.getElementById('leaderboardTable');
+      tbody.innerHTML = sorted.map((p, i) => {
+        const accuracy = p.correctAnswers + p.wrongAnswers > 0 
+          ? Math.round((p.correctAnswers / (p.correctAnswers + p.wrongAnswers)) * 100) 
+          : 0;
+        const time = p.submissionTime ? new Date(p.submissionTime).toLocaleString() : '-';
+        return `
+          <tr>
+            <td><span class="font-bold">#${i + 1}</span></td>
+            <td>${p.name}</td>
+            <td><span class="badge badge-primary">Level ${p.level}</span></td>
+            <td class="font-bold text-primary">${p.totalScore}</td>
+            <td>${accuracy}%</td>
+            <td>${time}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function downloadLeaderboard() {
+      const sortBy = (document.getElementById('leaderboardSort') && document.getElementById('leaderboardSort').value) || 'score';
+      const sorted = [...state.participants].sort((a, b) => {
+        if (sortBy === 'score') return b.totalScore - a.totalScore;
+        if (sortBy === 'level') return b.level - a.level;
+        if (sortBy === 'time') {
+          const ta = a.submissionTime ? new Date(a.submissionTime).getTime() : Infinity;
+          const tb = b.submissionTime ? new Date(b.submissionTime).getTime() : Infinity;
+          return ta - tb;
+        }
+        return 0;
+      });
+
+      const headers = ['Rank', 'Name', 'Email', 'Level', 'Correct', 'Wrong', 'Accuracy', 'Score', 'SubmissionTime'];
+      const rows = sorted.map((p, i) => {
+        const accuracy = p.correctAnswers + p.wrongAnswers > 0
+          ? Math.round((p.correctAnswers / (p.correctAnswers + p.wrongAnswers)) * 100)
+          : 0;
+        return [i + 1, p.name, p.email, p.level, p.correctAnswers, p.wrongAnswers, accuracy + '%', p.totalScore, (p.submissionTime || '-')];
+      });
+
+      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `leaderboard_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Leaderboard downloaded');
+    }
+
+    // Settings - removed as password is now managed in participants.json
+
+    // =====================
+    // PARTICIPANT DASHBOARD
+    // =====================
+    function renderParticipantDashboard() {
+      const user = state.currentUser;
+      document.getElementById('participantName').textContent = user.name;
+      
+      // Stats
+      const accuracy = user.correctAnswers + user.wrongAnswers > 0 
+        ? Math.round((user.correctAnswers / (user.correctAnswers + user.wrongAnswers)) * 100) 
+        : 0;
+      
+      document.getElementById('participantStats').innerHTML = `
+        <div class="card stat-card">
+          <div class="stat-label">Current Level</div>
+          <div style="margin-top:8px;">
+            <div class="flex justify-between items-center mb-2">
+              <div class="font-bold">Level ${user.level} / 5</div>
+              <div class="text-sm text-muted">${user.level * 20}%</div>
+            </div>
+            <div class="progress-bar">
+              <div id="levelFill" class="progress-fill" style="width: ${Math.round((user.level / 5) * 100)}%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-value text-success">${user.correctAnswers}</div>
+          <div class="stat-label">Correct Answers</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-value text-destructive">${user.wrongAnswers}</div>
+          <div class="stat-label">Wrong Answers</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-value text-primary">${accuracy}%</div>
+          <div class="stat-label">Accuracy</div>
+        </div>
+      `;
+
+      // Available shifts
+      const availableShifts = state.shifts.filter(s => 
+        s.isActive && user.assignedShifts.includes(s.id)
+      );
+      
+      document.getElementById('availableShifts').innerHTML = availableShifts.map(shift => {
+        const questionCount = state.questions.filter(q => q.shiftId === shift.id).length;
+        return `
+          <div class="card">
+            <h4 class="mb-2">${shift.name}</h4>
+            <p class="text-muted text-sm mb-2">⏰ ${new Date(shift.startTime).toLocaleString()}</p>
+            <p class="text-muted text-sm mb-2">⏱️ Duration: ${shift.duration} minutes</p>
+            <p class="text-sm mb-4">📝 ${questionCount} questions</p>
+            <button class="btn btn-primary" onclick="startQuiz('${shift.id}')" ${questionCount === 0 ? 'disabled' : ''}>
+              ${questionCount === 0 ? 'No Questions' : 'Start Quiz'}
+            </button>
+          </div>
+        `;
+      }).join('') || '<p class="text-muted">No quizzes available at the moment.</p>';
+    }
+
+    // =====================
+    // QUIZ FUNCTIONALITY
+    // =====================
+    function startQuiz(shiftId) {
+      const shift = state.shifts.find(s => s.id === shiftId);
+      const questions = state.questions.filter(q => q.shiftId === shiftId);
+      
+      if (questions.length === 0) {
+        showToast('No questions available for this shift', 'error');
+        return;
+      }
+
+      // Shuffle questions
+      const shuffled = [...questions].sort(() => Math.random() - 0.5);
+      
+      state.currentQuiz = {
+        shiftId,
+        questions: shuffled,
+        currentIndex: 0,
+        correctCount: 0,
+        wrongCount: 0,
+        timeRemaining: shift.duration * 60,
+        consecutiveCorrect: 0,
+        consecutiveWrong: 0,
+        answered: false,
+        answers: [] // store { questionId, selectedIndex, isCorrect }
+      };
+
+      document.getElementById('quizShiftName').textContent = shift.name;
+      document.getElementById('totalQuestions').textContent = shuffled.length;
+      document.getElementById('currentLevel').textContent = state.currentUser.level;
+      
+      showPage('quizPage');
+      renderQuestion();
+      startTimer();
+    }
+
+    function renderQuestion() {
+      const quiz = state.currentQuiz;
+      const q = quiz.questions[quiz.currentIndex];
+      
+      document.getElementById('currentQuestionNum').textContent = quiz.currentIndex + 1;
+      document.getElementById('questionText').textContent = q.question;
+      document.getElementById('quizProgress').style.width = 
+        `${((quiz.currentIndex) / quiz.questions.length) * 100}%`;
+      
+      const optionsHtml = q.options.map((opt, i) => `
+        <button class="quiz-option" onclick="chooseOption(${i})" id="option${i}">
+          <span class="font-bold">${String.fromCharCode(65 + i)}.</span> ${opt}
+        </button>
+      `).join('');
+      
+      document.getElementById('optionsContainer').innerHTML = optionsHtml;
+      document.getElementById('skipBtn').classList.remove('hidden');
+      const nextBtn = document.getElementById('nextBtn');
+      nextBtn.classList.add('hidden');
+      nextBtn.textContent = 'Save & Next';
+      // clear any previous selection
+      quiz.selectedIndex = null;
+      document.querySelectorAll('.quiz-option').forEach(b => b.classList.remove('selected'));
+      quiz.answered = false;
+    }
+
+    // User selects an option — mark selection but do NOT reveal correctness
+    function chooseOption(index) {
+      if (state.currentQuiz.answered) return;
+      const quiz = state.currentQuiz;
+      quiz.selectedIndex = index;
+      // visual selection for participant only
+      document.querySelectorAll('.quiz-option').forEach((btn, i) => {
+        btn.classList.toggle('selected', i === index);
+      });
+
+      // show Save & Next button
+      const nextBtn = document.getElementById('nextBtn');
+      nextBtn.classList.remove('hidden');
+      document.getElementById('skipBtn').classList.add('hidden');
+    }
+
+    // Save the selected option, evaluate silently against host answer sheet, update stats, then move next
+    function saveAndNext() {
+      const quiz = state.currentQuiz;
+      if (quiz.answered) return;
+      const q = quiz.questions[quiz.currentIndex];
+      const index = quiz.selectedIndex;
+
+      if (index === null || index === undefined) {
+        showToast('Please select an option or Skip', 'error');
+        return;
+      }
+
+      quiz.answered = true;
+      const isCorrect = index === q.correctAnswer;
+
+      // store answer record (no display of correctness to participant)
+      quiz.answers.push({ questionId: q.id, selectedIndex: index, isCorrect });
+
+      if (isCorrect) {
+        quiz.correctCount++;
+        quiz.consecutiveCorrect++;
+        quiz.consecutiveWrong = 0;
+        state.currentUser.correctAnswers++;
+        state.currentUser.totalScore += 10 * state.currentUser.level;
+
+        if (quiz.consecutiveCorrect >= 5) {
+          // Level up but cap at 5
+          if (state.currentUser.level < 5) {
+            state.currentUser.level++;
+            showToast(`Level Up! Now Level ${state.currentUser.level}`);
+          } else {
+            showToast('Maximum level reached', 'success');
+          }
+          quiz.consecutiveCorrect = 0;
+          document.getElementById('currentLevel').textContent = state.currentUser.level;
+        }
+      } else {
+        quiz.wrongCount++;
+        quiz.consecutiveWrong++;
+        quiz.consecutiveCorrect = 0;
+        state.currentUser.wrongAnswers++;
+
+        if (quiz.consecutiveWrong >= 5) {
+          if (state.currentUser.level > 0) {
+            state.currentUser.level--;
+            showToast(`Level Down! Now Level ${state.currentUser.level}`, 'error');
+          } else {
+            showToast('Already at minimum level', 'error');
+          }
+          quiz.consecutiveWrong = 0;
+          document.getElementById('currentLevel').textContent = state.currentUser.level;
+        }
+      }
+
+      // persist participant update in master list
+      const pIndex = state.participants.findIndex(p => p.id === state.currentUser.id);
+      if (pIndex !== -1) state.participants[pIndex] = { ...state.currentUser };
+
+      // move to next question after a short delay to allow UI feedback (but not correctness)
+      document.getElementById('nextBtn').classList.add('hidden');
+      document.getElementById('skipBtn').classList.remove('hidden');
+      setTimeout(() => nextQuestion(), 150);
+    }
+
+    function skipQuestion() {
+      state.currentQuiz.wrongCount++;
+      state.currentUser.wrongAnswers++;
+      state.currentQuiz.consecutiveWrong++;
+      state.currentQuiz.consecutiveCorrect = 0;
+
+      // Check for level down on 5 consecutive wrongs
+      if (state.currentQuiz.consecutiveWrong >= 5) {
+        if (state.currentUser.level > 0) {
+          state.currentUser.level--;
+          showToast(`Level Down! Now Level ${state.currentUser.level}`, 'error');
+        }
+        state.currentQuiz.consecutiveWrong = 0;
+        document.getElementById('currentLevel').textContent = state.currentUser.level;
+      }
+
+      // Update participant
+      const pIndex = state.participants.findIndex(p => p.id === state.currentUser.id);
+      if (pIndex !== -1) {
+        state.participants[pIndex] = { ...state.currentUser };
+      }
+
+      nextQuestion();
+    }
+
+    function nextQuestion() {
+      state.currentQuiz.currentIndex++;
+      
+      if (state.currentQuiz.currentIndex >= state.currentQuiz.questions.length) {
+        endQuiz();
+      } else {
+        renderQuestion();
+      }
+    }
+
+    function startTimer() {
+      document.getElementById('quizTimer').textContent = formatTime(state.currentQuiz.timeRemaining);
+      
+      state.quizTimer = setInterval(() => {
+        state.currentQuiz.timeRemaining--;
+        document.getElementById('quizTimer').textContent = formatTime(state.currentQuiz.timeRemaining);
+        
+        if (state.currentQuiz.timeRemaining <= 0) {
+          clearInterval(state.quizTimer);
+          endQuiz();
+        }
+      }, 1000);
+    }
+
+    function endQuiz() {
+      clearInterval(state.quizTimer);
+      
+      document.getElementById('resultCorrect').textContent = state.currentQuiz.correctCount;
+      document.getElementById('resultWrong').textContent = state.currentQuiz.wrongCount;
+      
+      const accuracy = state.currentQuiz.correctCount + state.currentQuiz.wrongCount > 0
+        ? Math.round((state.currentQuiz.correctCount / (state.currentQuiz.correctCount + state.currentQuiz.wrongCount)) * 100)
+        : 0;
+      
+      let message = '';
+      if (accuracy >= 80) message = 'Excellent work! You\'re a quiz master! 🎉';
+      else if (accuracy >= 60) message = 'Good job! Keep practicing! 👍';
+      else if (accuracy >= 40) message = 'Not bad! Room for improvement. 💪';
+      else message = 'Keep studying and try again! 📚';
+      
+      document.getElementById('resultMessage').textContent = message;
+      // record submission time and persist participant data
+      state.currentUser.submissionTime = new Date().toISOString();
+      const pIndex = state.participants.findIndex(p => p.id === state.currentUser.id);
+      if (pIndex !== -1) state.participants[pIndex] = { ...state.currentUser };
+
+      document.getElementById('resultsModal').classList.remove('hidden');
+    }
+
+    function finishQuiz() {
+      document.getElementById('resultsModal').classList.add('hidden');
+      showPage('participantDashboard');
+    }
+
+    // =====================
+    // INITIALIZE
+    // =====================
+    document.addEventListener('DOMContentLoaded', () => {
+      showPage('landing');
+    });
+  </script>
+</body>
+</html>

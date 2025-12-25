@@ -1,0 +1,22 @@
+{
+  "hosts": [
+    {
+      "id": "host1",
+      "name": "Admin",
+      "email": "gunashekarsaiabhiram@gmail.com",
+      "password": "123456"
+    },
+    {
+      "id": "host2",
+      "name": "Manager",
+      "email": "manager@quiz.com",
+      "password": "manager123"
+    },
+    {
+      "id": "host3",
+      "name": "Instructor",
+      "email": "instructor@quiz.com",
+      "password": "instructor123"
+    }
+  ]
+}

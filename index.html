@@ -848,7 +848,11 @@
       <div id="hostLeaderboard" class="hidden animate-fadeIn">
         <div class="flex justify-between items-center mb-6">
           <h3>Leaderboard</h3>
-          <div class="flex gap-2 items-center">
+          <div class="flex gap-2 items-center flex-wrap">
+            <label class="text-muted text-sm" for="leaderboardShiftFilter">Filter by Shift:</label>
+            <select id="leaderboardShiftFilter" class="input" onchange="renderLeaderboard()">
+              <option value="all">All Shifts</option>
+            </select>
             <label class="text-muted text-sm" for="leaderboardSort">Sort:</label>
             <select id="leaderboardSort" class="input" onchange="renderLeaderboard()">
               <option value="score">Score (desc)</option>
@@ -1239,6 +1243,7 @@
         renderParticipantsTable();
       } else if (tab === 'leaderboard') {
         document.getElementById('hostLeaderboard').classList.remove('hidden');
+        populateShiftFilter();
         renderLeaderboard();
       }
     }
@@ -1526,10 +1531,36 @@
       renderLeaderboard();
     }
 
+    function populateShiftFilter() {
+      const shiftFilter = document.getElementById('leaderboardShiftFilter');
+      if (!shiftFilter) return;
+      
+      const currentValue = shiftFilter.value;
+      shiftFilter.innerHTML = '<option value="all">All Shifts</option>';
+      
+      state.shifts.forEach(shift => {
+        const option = document.createElement('option');
+        option.value = shift.id;
+        option.textContent = shift.name;
+        shiftFilter.appendChild(option);
+      });
+      
+      shiftFilter.value = currentValue;
+    }
+
     function renderLeaderboard() {
       const sortBy = (document.getElementById('leaderboardSort') && document.getElementById('leaderboardSort').value) || 'score';
+      const selectedShift = document.getElementById('leaderboardShiftFilter') && document.getElementById('leaderboardShiftFilter').value;
 
-      const sorted = [...state.participants].sort((a, b) => {
+      // Filter participants by shift if a specific shift is selected
+      let filteredParticipants = state.participants;
+      if (selectedShift && selectedShift !== 'all') {
+        filteredParticipants = state.participants.filter(p => 
+          p.assignedShifts && p.assignedShifts.includes(selectedShift)
+        );
+      }
+
+      const sorted = [...filteredParticipants].sort((a, b) => {
         if (sortBy === 'score') {
           return leaderboardOrderDesc ? b.totalScore - a.totalScore : a.totalScore - b.totalScore;
         } else if (sortBy === 'level') {
@@ -1586,7 +1617,17 @@
 
     function downloadLeaderboard() {
       const sortBy = (document.getElementById('leaderboardSort') && document.getElementById('leaderboardSort').value) || 'score';
-      const sorted = [...state.participants].sort((a, b) => {
+      const selectedShift = document.getElementById('leaderboardShiftFilter') && document.getElementById('leaderboardShiftFilter').value;
+
+      // Filter participants by shift if a specific shift is selected
+      let filteredParticipants = state.participants;
+      if (selectedShift && selectedShift !== 'all') {
+        filteredParticipants = state.participants.filter(p => 
+          p.assignedShifts && p.assignedShifts.includes(selectedShift)
+        );
+      }
+
+      const sorted = [...filteredParticipants].sort((a, b) => {
         if (sortBy === 'score') return b.totalScore - a.totalScore;
         if (sortBy === 'level') return b.level - a.level;
         if (sortBy === 'time') {

@@ -1663,60 +1663,41 @@
       e.target.reset();
     }
 
-    // Robust CSV parser that supports quoted fields and commas inside quotes
+    // CSV parser that supports quoted fields and commas inside quotes (line-wise)
     function parseCSV(text) {
-      // Remove BOM if present
-      text = text.replace(/^\uFEFF/, '');
-      const rows = [];
-      let current = '';
-      let insideQuotes = false;
-      for (let i = 0; i < text.length; i++) {
-        const ch = text[i];
-        const next = text[i + 1];
-        if (ch === '"') {
-          if (insideQuotes && next === '"') { // escaped quote
-            current += '"';
-            i++; // skip next
-          } else {
-            insideQuotes = !insideQuotes;
-          }
-        } else if ((ch === '\n' || ch === '\r') && !insideQuotes) {
-          // handle CRLF and LF
-          // If CR followed by LF, skip the LF
-          if (ch === '\r' && next === '\n') { i++; }
-          rows.push(current);
-          current = '';
-        } else {
-          current += ch;
-        }
-      }
-      if (current.length) rows.push(current);
-
-      // Split header and map rows to objects
-      const headerLine = rows.shift() || '';
-      const headers = headerLine.split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
-      const data = rows.map(r => {
-        // split taking into account quoted fields
-        const values = [];
-        let val = '';
-        let inQ = false;
-        for (let i = 0; i < r.length; i++) {
-          const ch = r[i];
-          const nx = r[i + 1];
-          if (ch === '"') {
-            if (inQ && nx === '"') { val += '"'; i++; }
-            else { inQ = !inQ; }
-          } else if (ch === ',' && !inQ) {
-            values.push(val);
-            val = '';
-          } else { val += ch; }
-        }
-        values.push(val);
+      text = String(text || '').replace(/^\uFEFF/, '');
+      const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+      if (lines.length === 0) return [];
+      const headerLine = lines.shift();
+      const headers = parseCSVLine(headerLine).map(h => h.trim().toLowerCase());
+      const data = lines.map(line => {
+        const values = parseCSVLine(line);
         const obj = {};
         headers.forEach((h, i) => { obj[h] = (values[i] !== undefined) ? values[i].trim() : ''; });
         return obj;
       });
       return data;
+    }
+
+    function parseCSVLine(line) {
+      const values = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        const nx = line[i + 1];
+        if (ch === '"') {
+          if (inQuotes && nx === '"') { cur += '"'; i++; }
+          else { inQuotes = !inQuotes; }
+        } else if (ch === ',' && !inQuotes) {
+          values.push(cur);
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      values.push(cur);
+      return values;
     }
 
     function importParticipantsFile(input) {

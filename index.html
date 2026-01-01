@@ -1063,6 +1063,7 @@
             <button class="btn btn-primary" onclick="openParticipantModal()">+ Add Participant</button>
             <label class="btn btn-primary" for="participantsFileInput" style="margin:0;">📁 Import File</label>
             <input id="participantsFileInput" type="file" accept=".csv,application/json,text/csv" class="hidden" onchange="importParticipantsFile(this)">
+            <button class="btn btn-outline" onclick="downloadParticipants()">📥 Download CSV</button>
           </div>
         </div>
         <div class="table-container">
@@ -1268,13 +1269,7 @@
         { id: '2', name: 'Afternoon Shift', startTime: '2025-01-15T14:00', endTime: '2025-01-15T17:00', duration: 45, isActive: true },
         { id: '3', name: 'Evening Shift', startTime: '2025-01-15T18:00', endTime: '2025-01-15T21:00', duration: 30, isActive: false }
       ],
-      participants: [
-        { id: '1', uniqueId: '100001', name: 'Alice Johnson', email: 'alice@example.com', level: 3, correctAnswers: 25, wrongAnswers: 5, totalScore: 250, assignedShifts: ['1', '2'] },
-        { id: '2', uniqueId: '100002', name: 'Bob Smith', email: 'bob@example.com', level: 2, correctAnswers: 18, wrongAnswers: 12, totalScore: 180, assignedShifts: ['1'] },
-        { id: '3', uniqueId: '100003', name: 'Carol Williams', email: 'carol@example.com', level: 4, correctAnswers: 35, wrongAnswers: 8, totalScore: 350, assignedShifts: ['2', '3'] },
-        { id: '4', uniqueId: '100004', name: 'David Brown', email: 'david@example.com', level: 1, correctAnswers: 8, wrongAnswers: 7, totalScore: 80, assignedShifts: ['1', '3'] },
-        { id: '5', uniqueId: '100005', name: 'Eva Martinez', email: 'eva@example.com', level: 5, correctAnswers: 45, wrongAnswers: 3, totalScore: 450, assignedShifts: ['1', '2', '3'] }
-      ],
+      participants: [],
       questions: [
         { id: '1', shiftId: '1', question: 'What is the capital of France?', options: ['London', 'Berlin', 'Paris', 'Madrid'], correctAnswer: 2 },
         { id: '2', shiftId: '1', question: 'Which planet is known as the Red Planet?', options: ['Venus', 'Mars', 'Jupiter', 'Saturn'], correctAnswer: 1 },
@@ -1316,6 +1311,63 @@
       const maxExisting = ids.length ? Math.max(...ids) : 100000;
       const base = Math.max(maxExisting, 100000);
       return String(base + 1).padStart(6, '0');
+    }
+
+    function loadExternalData() {
+      fetch('participants.json')
+        .then(response => {
+          if (!response.ok) return;
+          return response.json();
+        })
+        .then(data => {
+          // Handle both object wrapper and direct array
+          let participantsList = [];
+          if (Array.isArray(data)) {
+            participantsList = data;
+          } else if (data && data.participants && Array.isArray(data.participants)) {
+            participantsList = data.participants;
+            if (data.commonPassword) state.commonPassword = data.commonPassword;
+          }
+          
+          if (participantsList.length > 0) {
+            let count = 0;
+            participantsList.forEach(p => {
+              // Handle variations of ID (id, uniqueId, unique_id)
+              const pId = String(p.id || p.uniqueId || p.unique_id || '');
+              if (!pId) return;
+
+              const exists = state.participants.some(existing => 
+                existing.uniqueId === pId || existing.id === pId
+              );
+              
+              if (!exists) {
+                state.participants.push({
+                  id: generateId(),
+                  uniqueId: pId,
+                  name: p.name || `Participant ${pId}`,
+                  email: p.email || '',
+                  level: Number(p.level) || 1,
+                  correctAnswers: Number(p.correctAnswers || p.correct || 0) || 0,
+                  wrongAnswers: Number(p.wrongAnswers || p.wrong || 0) || 0,
+                  totalScore: Number(p.totalScore || p.score || 0) || 0,
+                  assignedShifts: p.assignedShifts || state.shifts.filter(s => s.isActive).map(s => s.id),
+                  submissionTime: p.submissionTime || null
+                });
+                count++;
+              }
+            });
+            console.log(`Loaded ${count} participants from participants.json`);
+            
+            // Refresh if currently viewing participants
+            if (state.currentPage === 'hostDashboard') {
+              const activeTab = document.querySelector('.tab.active');
+              if (activeTab && activeTab.textContent.includes('Participants')) {
+                renderParticipantsTable();
+              }
+            }
+          }
+        })
+        .catch(e => console.log('Could not load participants.json', e));
     }
 
     function showToast(message, type = 'success') {
@@ -1718,17 +1770,20 @@
             else if (data && Array.isArray(data.participants)) items = data.participants;
             else throw new Error('JSON should be an array or { participants: [...] }');
 
-            parsed = items.map(p => ({
-              id: (p.id !== undefined && p.id !== null) ? String(p.id) : (p.uniqueId ? String(p.uniqueId) : ''),
-              uniqueId: (p.uniqueId !== undefined && p.uniqueId !== null) ? String(p.uniqueId) : (p.id ? String(p.id) : ''),
-              name: p.name || '',
-              email: p.email || '',
-              level: Number(p.level) || 0,
-              correctAnswers: Number(p.correctAnswers || p.correct || 0) || 0,
-              wrongAnswers: Number(p.wrongAnswers || p.wrong || 0) || 0,
-              totalScore: Number(p.totalScore || p.score || 0) || 0,
-              assignedShifts: p.assignedShifts || []
-            }));
+            parsed = items.map(p => {
+              const pId = String(p.id || p.uniqueId || p.unique_id || '');
+              return {
+                id: pId,
+                uniqueId: pId,
+                name: p.name || '',
+                email: p.email || '',
+                level: Number(p.level) || 0,
+                correctAnswers: Number(p.correctAnswers || p.correct || 0) || 0,
+                wrongAnswers: Number(p.wrongAnswers || p.wrong || 0) || 0,
+                totalScore: Number(p.totalScore || p.score || 0) || 0,
+                assignedShifts: p.assignedShifts || []
+              };
+            });
           } else {
             // CSV
             const rows = parseCSV(text);
@@ -1805,6 +1860,48 @@
         }
       };
       reader.readAsText(file);
+    }
+
+    function downloadParticipants() {
+      const headers = ['Unique ID', 'Name', 'Email', 'Level', 'Correct Answers', 'Wrong Answers', 'Total Score', 'Assigned Shifts', 'Submission Time'];
+      
+      const escapeCsv = (field) => {
+        if (field === null || field === undefined) return '';
+        const str = String(field);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const rows = state.participants.map(p => {
+        const shifts = p.assignedShifts ? p.assignedShifts.map(sid => {
+            const s = state.shifts.find(shift => shift.id === sid);
+            return s ? s.name : sid;
+        }).join('; ') : '';
+        
+        return [
+          escapeCsv(p.uniqueId || p.id),
+          escapeCsv(p.name),
+          escapeCsv(p.email),
+          p.level,
+          p.correctAnswers,
+          p.wrongAnswers,
+          p.totalScore,
+          escapeCsv(shifts),
+          escapeCsv(p.submissionTime)
+        ].join(',');
+      });
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `participants_list_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Participants list downloaded');
     }
 
     function resetParticipant(id) {
@@ -2257,9 +2354,9 @@
     // INITIALIZE
     // =====================
     document.addEventListener('DOMContentLoaded', () => {
+      loadExternalData();
       showPage('landing');
     });
   </script>
 </body>
 </html>
-

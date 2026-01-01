@@ -1663,76 +1663,130 @@
       e.target.reset();
     }
 
+    // Robust CSV parser that supports quoted fields and commas inside quotes
+    function parseCSV(text) {
+      // Remove BOM if present
+      text = text.replace(/^\uFEFF/, '');
+      const rows = [];
+      let current = '';
+      let insideQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+        if (ch === '"') {
+          if (insideQuotes && next === '"') { // escaped quote
+            current += '"';
+            i++; // skip next
+          } else {
+            insideQuotes = !insideQuotes;
+          }
+        } else if ((ch === '\n' || ch === '\r') && !insideQuotes) {
+          // handle CRLF and LF
+          // If CR followed by LF, skip the LF
+          if (ch === '\r' && next === '\n') { i++; }
+          rows.push(current);
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      if (current.length) rows.push(current);
+
+      // Split header and map rows to objects
+      const headerLine = rows.shift() || '';
+      const headers = headerLine.split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+      const data = rows.map(r => {
+        // split taking into account quoted fields
+        const values = [];
+        let val = '';
+        let inQ = false;
+        for (let i = 0; i < r.length; i++) {
+          const ch = r[i];
+          const nx = r[i + 1];
+          if (ch === '"') {
+            if (inQ && nx === '"') { val += '"'; i++; }
+            else { inQ = !inQ; }
+          } else if (ch === ',' && !inQ) {
+            values.push(val);
+            val = '';
+          } else { val += ch; }
+        }
+        values.push(val);
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = (values[i] !== undefined) ? values[i].trim() : ''; });
+        return obj;
+      });
+      return data;
+    }
+
     function importParticipantsFile(input) {
       const file = input.files && input.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const text = ev.target.result;
+        let text = ev.target.result;
         try {
+          text = String(text).replace(/^\uFEFF/, '');
           let parsed = [];
 
           if (file.name.toLowerCase().endsWith('.json')) {
             const data = JSON.parse(text);
-            if (Array.isArray(data)) parsed = data;
-            else if (data.participants && Array.isArray(data.participants)) parsed = data.participants;
+            let items = [];
+            if (Array.isArray(data)) items = data;
+            else if (data && Array.isArray(data.participants)) items = data.participants;
             else throw new Error('JSON should be an array or { participants: [...] }');
-            
-            // Ensure all parsed items have proper structure
-            parsed = parsed.map(p => ({
-              id: p.id || p.uniqueId || p.unique_id || '',
-              uniqueId: p.uniqueId || p.unique_id || p.id || '',
+
+            parsed = items.map(p => ({
+              id: (p.id !== undefined && p.id !== null) ? String(p.id) : (p.uniqueId ? String(p.uniqueId) : ''),
+              uniqueId: (p.uniqueId !== undefined && p.uniqueId !== null) ? String(p.uniqueId) : (p.id ? String(p.id) : ''),
               name: p.name || '',
               email: p.email || '',
-              level: p.level || 0,
-              correctAnswers: p.correctAnswers || p.correct || 0,
-              wrongAnswers: p.wrongAnswers || p.wrong || 0,
-              totalScore: p.totalScore || p.score || 0,
+              level: Number(p.level) || 0,
+              correctAnswers: Number(p.correctAnswers || p.correct || 0) || 0,
+              wrongAnswers: Number(p.wrongAnswers || p.wrong || 0) || 0,
+              totalScore: Number(p.totalScore || p.score || 0) || 0,
               assignedShifts: p.assignedShifts || []
             }));
           } else {
-            // parse CSV
-            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-            if (lines.length === 0) throw new Error('Empty file');
-            const header = lines.shift().split(',').map(h => h.trim().toLowerCase());
-            const idx = {};
-            header.forEach((h, i) => idx[h] = i);
+            // CSV
+            const rows = parseCSV(text);
+            if (!rows || rows.length === 0) throw new Error('Empty or invalid CSV');
 
-            parsed = lines.map(line => {
-              const cols = line.split(',').map(c => c.trim());
-              // Support both 'id' and 'uniqueid' column names
-              const uniqueId = cols[idx['uniqueid']] || cols[idx['unique_id']] || cols[idx['id']] || '';
+            parsed = rows.map(row => {
+              // normalize field names
+              const uniqueIdValue = row['uniqueid'] || row['unique_id'] || row['id'] || '';
               return {
-                id: uniqueId || generateParticipantUniqueId(),
-                uniqueId: uniqueId || generateParticipantUniqueId(),
-                name: cols[idx['name']] || (`Participant ${uniqueId || ''}`),
-                email: cols[idx['email']] || '',
-                level: Math.min(5, Math.max(0, parseInt(cols[idx['level']] || '0') || 0)),
-                correctAnswers: parseInt(cols[idx['correct']] || cols[idx['correctanswers']] || '0') || 0,
-                wrongAnswers: parseInt(cols[idx['wrong']] || cols[idx['wronganswers']] || '0') || 0,
-                totalScore: parseInt(cols[idx['score']] || cols[idx['totalscore']] || '0') || 0,
+                id: uniqueIdValue ? String(uniqueIdValue) : generateParticipantUniqueId(),
+                uniqueId: uniqueIdValue ? String(uniqueIdValue) : generateParticipantUniqueId(),
+                name: row['name'] || row['full name'] || (`Participant ${uniqueIdValue || ''}`),
+                email: row['email'] || '',
+                level: Math.min(5, Math.max(0, Number(row['level'] || '0') || 0)),
+                correctAnswers: Number(row['correctanswers'] || row['correct'] || '0') || 0,
+                wrongAnswers: Number(row['wronganswers'] || row['wrong'] || '0') || 0,
+                totalScore: Number(row['totalscore'] || row['score'] || '0') || 0,
                 assignedShifts: state.shifts.filter(s => s.isActive).map(s => s.id)
               };
             });
           }
 
-          if (parsed.length === 0) {
+          console.log('Parsed participants count:', parsed.length);
+
+          if (!parsed || parsed.length === 0) {
             showToast('No valid participants found in file', 'error');
             input.value = '';
             return;
           }
 
-          // merge parsed into state.participants (preserve external IDs as `uniqueId`)
+          // merge parsed into state.participants
           let addedCount = 0;
           let updatedCount = 0;
 
           parsed.forEach(p => {
             const externalId = p.id || p.uniqueId || null;
-            const existing = state.participants.find(x => x.id === externalId || x.uniqueId === externalId);
-            
+            const existing = state.participants.find(x => (x.uniqueId && x.uniqueId === externalId) || (x.id && x.id === externalId));
+
             if (existing) {
-              // Update existing participant
               existing.uniqueId = externalId || existing.uniqueId;
               Object.assign(existing, {
                 name: p.name || existing.name,
@@ -1741,11 +1795,10 @@
                 correctAnswers: Number(p.correctAnswers) || existing.correctAnswers || 0,
                 wrongAnswers: Number(p.wrongAnswers) || existing.wrongAnswers || 0,
                 totalScore: Number(p.totalScore) || existing.totalScore || 0,
-                assignedShifts: (p.assignedShifts && p.assignedShifts.length > 0) ? p.assignedShifts : (existing.assignedShifts || state.shifts.filter(s => s.isActive).map(s => s.id))
+                assignedShifts: (p.assignedShifts && p.assignedShifts.length) ? p.assignedShifts : (existing.assignedShifts || state.shifts.filter(s => s.isActive).map(s => s.id))
               });
               updatedCount++;
             } else {
-              // Create new participant with proper internal and external IDs
               const newP = {
                 id: generateId(),
                 uniqueId: externalId || generateParticipantUniqueId(),
@@ -1755,7 +1808,7 @@
                 correctAnswers: Number(p.correctAnswers) || 0,
                 wrongAnswers: Number(p.wrongAnswers) || 0,
                 totalScore: Number(p.totalScore) || 0,
-                assignedShifts: (p.assignedShifts && p.assignedShifts.length > 0) ? p.assignedShifts : state.shifts.filter(s => s.isActive).map(s => s.id)
+                assignedShifts: (p.assignedShifts && p.assignedShifts.length) ? p.assignedShifts : state.shifts.filter(s => s.isActive).map(s => s.id)
               };
               state.participants.push(newP);
               addedCount++;
@@ -1763,8 +1816,7 @@
           });
 
           renderParticipantsTable();
-          const message = `Import successful! Added: ${addedCount}, Updated: ${updatedCount}`;
-          showToast(message);
+          showToast(`Import successful! Added: ${addedCount}, Updated: ${updatedCount}`);
           input.value = '';
         } catch (err) {
           console.error('Import error', err);

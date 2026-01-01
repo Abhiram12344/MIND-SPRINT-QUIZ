@@ -1305,6 +1305,18 @@
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 
+    function saveLocalData() {
+      localStorage.setItem('quiz_shifts', JSON.stringify(state.shifts));
+      localStorage.setItem('quiz_questions', JSON.stringify(state.questions));
+      localStorage.setItem('quiz_participants', JSON.stringify(state.participants));
+    }
+
+    function loadLocalData() {
+      const s = localStorage.getItem('quiz_shifts'); if (s) state.shifts = JSON.parse(s);
+      const q = localStorage.getItem('quiz_questions'); if (q) state.questions = JSON.parse(q);
+      const p = localStorage.getItem('quiz_participants'); if (p) state.participants = JSON.parse(p);
+    }
+
     // Generate a sequential participant unique ID (external-facing), start at 100001
     function generateParticipantUniqueId() {
       const ids = state.participants.map(p => Number(p.uniqueId || p.id)).filter(n => !isNaN(n));
@@ -1356,6 +1368,7 @@
                 count++;
               }
             });
+            if (count > 0) saveLocalData();
             console.log(`Loaded ${count} participants from participants.json`);
             
             // Refresh if currently viewing participants
@@ -1584,6 +1597,7 @@
         isActive: true
       };
       state.shifts.push(shift);
+      saveLocalData();
       closeModal('shiftModal');
       renderShifts();
       renderQuestionShiftOptions();
@@ -1595,6 +1609,7 @@
       const shift = state.shifts.find(s => s.id === id);
       if (shift) {
         shift.isActive = !shift.isActive;
+        saveLocalData();
         renderShifts();
         showToast(`Shift ${shift.isActive ? 'activated' : 'deactivated'}`);
       }
@@ -1603,6 +1618,7 @@
     function deleteShift(id) {
       state.shifts = state.shifts.filter(s => s.id !== id);
       state.questions = state.questions.filter(q => q.shiftId !== id);
+      saveLocalData();
       renderShifts();
       renderQuestionShiftOptions();
       showToast('Shift deleted');
@@ -1629,6 +1645,7 @@
         correctAnswer: parseInt(document.getElementById('correctAnswer').value)
       };
       state.questions.push(question);
+      saveLocalData();
       renderQuestions();
       showToast('Question added successfully');
       e.target.reset();
@@ -1667,6 +1684,7 @@
 
     function deleteQuestion(id) {
       state.questions = state.questions.filter(q => q.id !== id);
+      saveLocalData();
       renderQuestions();
       showToast('Question deleted');
     }
@@ -1710,6 +1728,7 @@
         assignedShifts: state.shifts.filter(s => s.isActive).map(s => s.id)
       };
       state.participants.push(participant);
+      saveLocalData();
       closeModal('participantModal');
       renderParticipantsTable();
       showToast('Participant added successfully');
@@ -1852,6 +1871,7 @@
             }
           });
 
+          saveLocalData();
           renderParticipantsTable();
           showToast(`Import successful! Added: ${addedCount}, Updated: ${updatedCount}`);
           input.value = '';
@@ -1912,6 +1932,7 @@
         p.correctAnswers = 0;
         p.wrongAnswers = 0;
         p.totalScore = 0;
+        saveLocalData();
         renderParticipantsTable();
         showToast('Participant stats reset');
       }
@@ -1919,6 +1940,7 @@
 
     function deleteParticipant(id) {
       state.participants = state.participants.filter(p => p.id !== id);
+      saveLocalData();
       renderParticipantsTable();
       showToast('Participant deleted');
     }
@@ -2265,6 +2287,7 @@
       // persist participant update in master list
       const pIndex = state.participants.findIndex(p => p.id === state.currentUser.id);
       if (pIndex !== -1) state.participants[pIndex] = { ...state.currentUser };
+      saveLocalData();
 
       // move to next question after a short delay to allow UI feedback (but not correctness)
       document.getElementById('nextBtn').classList.add('hidden');
@@ -2293,6 +2316,7 @@
       if (pIndex !== -1) {
         state.participants[pIndex] = { ...state.currentUser };
       }
+      saveLocalData();
 
       nextQuestion();
     }
@@ -2342,6 +2366,7 @@
       state.currentUser.submissionTime = new Date().toISOString();
       const pIndex = state.participants.findIndex(p => p.id === state.currentUser.id);
       if (pIndex !== -1) state.participants[pIndex] = { ...state.currentUser };
+      saveLocalData();
 
       document.getElementById('resultsModal').classList.remove('hidden');
     }
@@ -2355,6 +2380,7 @@
     // INITIALIZE
     // =====================
     document.addEventListener('DOMContentLoaded', () => {
+      loadLocalData();
       loadExternalData();
       showPage('landing');
     });

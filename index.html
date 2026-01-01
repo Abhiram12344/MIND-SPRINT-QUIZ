@@ -1455,7 +1455,7 @@
       const password = document.getElementById('participantPassword').value.trim();
       // Load participants and hosts to validate login
       Promise.all([
-        fetch('participants.json').then(r => { if (!r.ok) throw new Error('Unable to load participant data'); return r.json(); }),
+        fetch('participants.json').then(r => { if (!r.ok) throw new Error('Unable to load participant data'); return r.json(); }).catch(() => null),
         fetch('hosts.json').then(r => { if (!r.ok) return null; return r.json(); }).catch(() => null)
       ])
         .then(([pData, hData]) => {

@@ -1295,7 +1295,7 @@
         answered: false
       },
       quizTimer: null,
-      commonPassword: 'quiz123'
+      commonPassword: 'participant@2026'
     };
 
     // =====================
@@ -1484,7 +1484,8 @@
           }
 
           // Validate password against the common password from participants.json
-          if (password === (pData && pData.commonPassword)) {
+          const filePassword = (pData && !Array.isArray(pData) && pData.commonPassword) ? pData.commonPassword : state.commonPassword;
+          if (password === filePassword) {
             // Use the host list participant record as the logged-in user
             state.currentUser = {
               id: participantInState.id,
